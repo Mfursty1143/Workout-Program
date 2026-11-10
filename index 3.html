@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Workout Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* ---------- STYLE: colors live in variables so dark mode is easy ---------- */
+:root{
+  --bg:#f4f5f3; --panel:#ffffff; --ink:#1b2430; --muted:#66717d; --line:#d9dde1;
+  --accent:#2b50aa; --accent-ink:#ffffff; --done:#2e7d5b; --today:#e6edfb;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#12171d; --panel:#1b222b; --ink:#e8ecf0; --muted:#9aa5b1; --line:#2d3743;
+    --accent:#7f9cf0; --accent-ink:#0f1522; --done:#5cc29a; --today:#222d45;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12171d; --panel:#1b222b; --ink:#e8ecf0; --muted:#9aa5b1; --line:#2d3743;
+  --accent:#7f9cf0; --accent-ink:#0f1522; --done:#5cc29a; --today:#222d45;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%;touch-action:pan-x pan-y}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 1rem/1.5 "Barlow",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+h1,h2{font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;font-weight:700;margin:0;line-height:1.05}
+h1{font-size:1.4rem}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:2px solid var(--ink)}
+.tabs{display:flex;gap:4px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.tab{padding:6px 14px;border:1px solid var(--line);background:var(--panel);border-radius:6px}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn{padding:6px 12px;border:1px solid var(--line);background:var(--panel);border-radius:6px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.nav{display:flex;align-items:center;gap:8px;margin:16px 0}
+.nav h2{flex:1;font-size:2.4rem}
+.muted{color:var(--muted)}
+.status{min-height:1.5em;color:var(--done);font-weight:500}
+
+/* Day view */
+.name-input{width:100%;font:700 1.5rem "Barlow Condensed","Arial Narrow",sans-serif;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.ex{padding:12px 4px;border-bottom:1px solid var(--line)}
+.exrow{display:flex;align-items:center;gap:12px}
+.pick{display:block;cursor:pointer}
+.picking .add{display:none}
+.log{display:grid;grid-template-columns:.8fr 1fr .8fr 2fr;gap:8px;margin:8px 0 0 34px}
+.edit{display:grid;grid-template-columns:2fr 1.6fr 1fr 1fr;gap:8px}
+.ex input[type=checkbox]{width:22px;height:22px;accent-color:var(--done);flex:none}
+.ex .label{flex:1}
+.ex.done .label{text-decoration:line-through;color:var(--muted)}
+.ex .detail{display:block;color:var(--muted);font-size:.9rem}
+.add{display:grid;grid-template-columns:2fr 1.6fr 1fr 1fr auto;gap:8px;margin-top:16px}
+.add input,.add select,.log input,.edit input,.edit select{padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+
+/* Week view */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.daycard{text-align:left;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:6px;min-height:110px}
+.daycard.today,.cell.today{background:var(--today);border-color:var(--accent)}
+.daycard .dow{font:700 1.1rem "Barlow Condensed","Arial Narrow",sans-serif}
+.daycard .wname{font-weight:600;margin-top:6px}
+.dayhead{display:block;width:100%;padding:0;border:0;background:none;text-align:left;font:inherit;color:inherit}
+.wkbar{margin:0 0 10px}
+.exlist{margin-top:8px;font-size:.9rem}
+.exlist summary{cursor:pointer;color:var(--accent);font-weight:600}
+.exlist ul{margin:6px 0 0;padding-left:18px}
+.exlist li{margin:3px 0}
+.exlist li.done{text-decoration:line-through;color:var(--muted)}
+.prime{margin-top:8px;padding-left:8px;border-left:3px solid var(--accent)}
+.prime.done{opacity:.6}
+.star{padding:6px 10px}
+.star[aria-pressed="true"]{color:var(--accent)}
+.add .prim{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.add .prim label{display:flex;align-items:center;gap:8px}
+.add #xb{grid-column:1 / -1}
+.picking .exlist{display:none}
+.exlist .banklist{list-style:none;padding:0;margin:6px 0 0}
+.banklist li{display:flex;align-items:center;gap:8px;padding:4px 0}
+.banklist li .btn{margin-left:auto}
+.add .prim input{width:20px;height:20px;padding:0;accent-color:var(--accent)}
+
+/* Month view */
+.month{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.mh{text-align:center;color:var(--muted);font-size:.85rem}
+.cell{min-height:72px;padding:4px 6px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.cell .n{font-weight:600}
+.cell .w{display:block;font-size:.72rem;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell.rest .w{color:var(--muted)}
+.blank{visibility:hidden}
+.sec{font-size:1.6rem;margin-top:28px}
+.trow{display:grid;grid-template-columns:110px 1fr 110px;gap:10px;align-items:center;padding:4px 0}
+.bar{display:block;height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.num{text-align:right;font-weight:600}
+.num small{font-weight:400}
+
+@media (max-width:720px){
+  .week{grid-template-columns:1fr}
+  .daycard{min-height:0}
+  .nav h2{font-size:1.8rem}
+  .add{grid-template-columns:1fr 1fr}
+  .add #xn,.add select{grid-column:1 / -1}
+  .edit{grid-template-columns:1fr 1fr}
+  .edit input:first-child,.edit select{grid-column:1 / -1}
+  .log{grid-template-columns:1fr 1fr 1fr;margin-left:0}
+  .log input:last-child{grid-column:1 / -1}
+  .add button{grid-column:1 / -1}
+  .cell{min-height:56px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Workout Planner</h1>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-day" onclick="setView('day')">Day</button>
+      <button class="tab" role="tab" id="tab-week" onclick="setView('week')">Week</button>
+      <button class="tab" role="tab" id="tab-month" onclick="setView('month')">Month</button>
+    </div>
+  </header>
+
+  <div class="nav">
+    <button class="btn" onclick="shift(-1)" aria-label="Previous">&lsaquo;</button>
+    <h2 id="title"></h2>
+    <button class="btn" onclick="shift(1)" aria-label="Next">&rsaquo;</button>
+    <button class="btn" onclick="goToday()">Today</button>
+  </div>
+
+  <main id="main"></main>
+  <p class="status" id="status" role="status"></p>
+</div>
+
+<script>
+/* ---------- DATA: everything is saved in one object, keyed by date ----------
+   data = { "2026-11-05": { name: "Push day", exercises: [ {name, sets, reps, weight, done} ] } }
+*/
+const KEY = 'workout-planner-v1';
+let data = {};
+try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { data = {}; }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
+
+/* ---------- DATE HELPERS ---------- */
+const pad = n => String(n).padStart(2, '0');
+const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const mondayOf = d => addDays(d, -((d.getDay() + 6) % 7));
+const fmt = (d, o) => d.toLocaleDateString('en-US', o);
+/* Weekly rest days. getDay() gives 0 for Sunday, 1 for Monday ... 4 for Thursday. Edit this list to change them. */
+const REST_DAYS = [0, 4];
+const isRestDay = d => REST_DAYS.includes(d.getDay());
+/* Your weekly split. Keys are weekdays (1 = Monday ... 6 = Saturday). Days not listed are rest days. */
+const SPLIT = { 1: 'Upper', 2: 'Lower', 3: 'Upper', 5: 'Lower', 6: 'Upper' };
+const planned = d => SPLIT[d.getDay()] || '';
+/* The muscle groups you can pick for each exercise. Edit this list to add or rename them. */
+const MUSCLES = ['Chest', 'Biceps', 'Triceps', 'Shoulders', 'Rear delts', 'Upper back', 'Lats', 'Quads', 'Hamstrings', 'Adductors'];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- STATE ---------- */
+let view = 'day';
+let sel = iso(new Date());   // the date currently selected
+
+function say(msg) { document.getElementById('status').textContent = msg; }
+function setView(v) { view = v; say(''); render(); }
+function go(dateStr) { sel = dateStr; setView('day'); }
+function goToday() { sel = iso(new Date()); say(''); render(); }
+function shift(dir) {
+  const d = parse(sel);
+  if (view === 'day') sel = iso(addDays(d, dir));
+  else if (view === 'week') sel = iso(addDays(d, 7 * dir));
+  else { d.setDate(1); d.setMonth(d.getMonth() + dir); sel = iso(d); }
+  say(''); render();
+}
+function ensure() { if (!data[sel]) data[sel] = { name: planned(parse(sel)), exercises: [] }; return data[sel]; }
+
+/* ---------- DAY ACTIONS ---------- */
+function setName(v) { ensure().name = v.trim(); save(); }
+function addEx() {
+  const g = id => document.getElementById(id).value.trim();
+  if (!g('xn')) { say('Enter an exercise name first.'); document.getElementById('xn').focus(); return; }
+  ensure().exercises.push({ name: g('xn'), muscle: g('xm'), sets: g('xs'), reps: g('xr'), weight: '', notes: '', primary: document.getElementById('xp').checked, done: false });
+  save(); say(''); render();
+  document.getElementById('xn').focus();
+}
+/* Editing an exercise: remember which one, then swap its row for input boxes */
+let editing = null;   // { date, i } while an exercise is being edited
+function startEdit(i) { editing = { date: sel, i: i }; say(''); render(); }
+function cancelEdit() { editing = null; render(); }
+function saveEdit(i) {
+  const g = id => document.getElementById(id).value.trim();
+  if (!g('en')) { say('An exercise needs a name.'); return; }
+  Object.assign(data[sel].exercises[i], { name: g('en'), muscle: g('em'), sets: g('es'), reps: g('er') });
+  editing = null; save(); say(''); render();
+}
+/* Log the weight or notes after you do an exercise (saved straight away, no need to re-draw) */
+function setLog(i, field, v, el) {
+  v = v.trim();
+  if (field === 'rpe') {   // RPE must be a number from 1 to 10
+    const n = parseFloat(v);
+    if (v !== '' && !(n >= 1 && n <= 10)) { say('RPE is a number from 1 to 10 (halves are fine, like 8.5).'); v = ''; if (el) el.value = ''; }
+    else if (v !== '') v = String(n);
+  }
+  data[sel].exercises[i][field] = v; save();
+}
+/* Clipboard: copy chosen exercises (or a whole day), then paste them onto any day. It survives reloads. */
+let clip = null;
+try { clip = JSON.parse(localStorage.getItem(KEY + '-clip')); } catch (e) { clip = null; }
+function saveClip() { try { localStorage.setItem(KEY + '-clip', JSON.stringify(clip)); } catch (e) {} }
+let picking = false, picked = [], pickDate = '';   // "select exercises to copy" mode
+function startPick() { picking = true; picked = []; pickDate = sel; say(''); render(); }
+function stopPick() { picking = false; picked = []; render(); }
+function togglePick(i) { const at = picked.indexOf(i); if (at >= 0) picked.splice(at, 1); else picked.push(i); render(); }
+function pickAll() { const all = data[sel].exercises.map((e, i) => i); picked = picked.length === all.length ? [] : all; render(); }
+function copyPicked() {
+  if (!picked.length) { say('Tick at least one exercise first.'); return; }
+  const list = picked.slice().sort((a, b) => a - b).map(i => ({ ...data[sel].exercises[i], done: false }));
+  clip = { label: list.length + (list.length === 1 ? ' exercise' : ' exercises'), name: '', exercises: list };
+  saveClip(); picking = false; picked = [];
+  say('Copied ' + list.length + '. Open any day and tap Paste.'); render();
+}
+function copyWholeDay() {
+  const w = data[sel]; if (!w || !w.exercises.length) return;
+  clip = { label: (w.name || 'Whole day') + ' (' + w.exercises.length + ')', name: w.name, exercises: w.exercises.map(e => ({ ...e, done: false })) };
+  saveClip(); say('Copied the whole day. Open any day and tap Paste.'); render();
+}
+function paste() {
+  if (!clip) return;
+  const w = ensure();
+  if (!w.exercises.length && clip.name) w.name = clip.name;   // a pasted whole day brings its name along
+  clip.exercises.forEach(e => w.exercises.push({ ...e, done: false }));
+  save(); say('Pasted ' + clip.exercises.length + (clip.exercises.length === 1 ? ' exercise.' : ' exercises.')); render();
+}
+function clearClip() { clip = null; saveClip(); say('Clipboard cleared.'); render(); }
+/* Exercise bank: exercises you save once and pick from a drop-down when adding. Stored in the browser like your workouts. */
+let bank = [];
+try { bank = JSON.parse(localStorage.getItem(KEY + '-bank')) || []; } catch (e) { bank = []; }
+function saveBank() { try { localStorage.setItem(KEY + '-bank', JSON.stringify(bank)); } catch (e) {} }
+const bankOptions = () => '<option value="">Choose from my exercise bank</option>' +
+  bank.map((b, i) => '<option value="' + i + '">' + esc(b.name) + (b.muscle ? ' (' + esc(b.muscle) + ')' : '') + '</option>').join('');
+function bankListHTML() {
+  if (!bank.length) return '<li class="muted">Nothing saved yet. Type an exercise above and tap Save to bank.</li>';
+  return bank.map((b, i) => '<li>' + (b.primary ? '\u2605 ' : '') + esc(b.name) + ' <span class="muted">' + esc(b.muscle || '') + '</span>' +
+    '<button class="btn" onclick="removeBank(' + i + ')" aria-label="Remove ' + esc(b.name) + ' from the bank">Remove</button></li>').join('');
+}
+function bankManageHTML() {
+  return '<details class="exlist"><summary>Exercise bank (<span id="bankcount">' + bank.length + '</span>)</summary><ul class="banklist" id="banklist">' + bankListHTML() + '</ul></details>';
+}
+/* Update the bank drop-down and list in place, so anything you have typed in the add row stays put */
+function refreshBank() {
+  const s = document.getElementById('xb'); if (s) s.innerHTML = bankOptions();
+  const l = document.getElementById('banklist'); if (l) l.innerHTML = bankListHTML();
+  const c = document.getElementById('bankcount'); if (c) c.textContent = bank.length;
+}
+/* Picking from the bank fills in the add row; add the sets (and reps) and tap Add exercise */
+function fromBank(v) {
+  const b = bank[v]; if (v === '' || !b) return;
+  document.getElementById('xn').value = b.name;
+  document.getElementById('xm').value = b.muscle || '';
+  document.getElementById('xp').checked = !!b.primary;
+  document.getElementById('xb').value = '';
+  document.getElementById('xs').focus();
+}
+function saveToBank() {
+  const name = document.getElementById('xn').value.trim();
+  if (!name) { say('Type an exercise name first, then tap Save to bank.'); return; }
+  const item = { name: name, muscle: document.getElementById('xm').value, primary: document.getElementById('xp').checked };
+  const at = bank.findIndex(b => b.name.toLowerCase() === name.toLowerCase());
+  if (at >= 0) bank[at] = item; else bank.push(item);
+  bank.sort((a, b) => a.name.localeCompare(b.name));
+  saveBank(); refreshBank(); say('Saved ' + name + ' to your exercise bank.');
+}
+function removeBank(i) { const n = bank[i].name; bank.splice(i, 1); saveBank(); refreshBank(); say('Removed ' + n + ' from the bank.'); }
+
+/* Mark or unmark an exercise as a primary lift (the star button) */
+function togglePrimary(i) { const e = data[sel].exercises[i]; e.primary = !e.primary; save(); render(); }
+function toggle(i) { data[sel].exercises[i].done = !data[sel].exercises[i].done; save(); render(); }
+function del(i) { data[sel].exercises.splice(i, 1); save(); render(); }
+function clearDay() { delete data[sel]; save(); say('Day cleared.'); render(); }
+/* Make a fresh copy of a workout with every exercise unchecked */
+function cloneWorkout(w) { return { name: w.name, exercises: w.exercises.map(e => ({ ...e, done: false })) }; }
+
+/* Copy the selected day forward by n days (1 = next day, 7 = same day next week) */
+function copyDay(n) {
+  const w = data[sel]; if (!w) return;
+  const target = iso(addDays(parse(sel), n));
+  const replaced = !!data[target];
+  data[target] = cloneWorkout(w);
+  save();
+  say('Copied to ' + fmt(parse(target), { weekday: 'long', month: 'short', day: 'numeric' }) + (replaced ? ' (replaced what was there).' : '.'));
+}
+
+/* Copy every workout in the selected week to the week after, then jump to that week */
+function copyWeek() {
+  const m = mondayOf(parse(sel));
+  let count = 0;
+  for (let i = 0; i < 7; i++) {
+    const w = data[iso(addDays(m, i))];
+    if (w) { data[iso(addDays(m, i + 7))] = cloneWorkout(w); count++; }
+  }
+  if (!count) { say('This week has no workouts to copy yet.'); return; }
+  save();
+  sel = iso(addDays(m, 7));
+  say('Copied ' + count + ' workouts. You’re now viewing next week.');
+  render();
+}
+function sampleWeek() {
+  const m = mondayOf(parse(sel));
+  const plan = [
+    ['Upper', [['Bench press', 4, 8, 135, 'Chest'], ['Barbell row', 4, 8, 115, 'Upper back'], ['Overhead press', 3, 10, 75, 'Shoulders'], ['Triceps pushdown', 3, 12, 40, 'Triceps']]],
+    ['Lower', [['Back squat', 4, 6, 185, 'Quads'], ['Romanian deadlift', 3, 10, 135, 'Hamstrings'], ['Adductor machine', 3, 12, 90, 'Adductors']]],
+    ['Upper', [['Incline dumbbell press', 3, 10, 50, 'Chest'], ['Pull-ups', 4, 6, '', 'Lats'], ['Face pull', 3, 15, 40, 'Rear delts'], ['Lateral raise', 3, 15, 15, 'Shoulders']]],
+    null, // Thursday: rest
+    ['Lower', [['Deadlift', 3, 5, 205, 'Hamstrings'], ['Leg press', 3, 12, 270, 'Quads'], ['Walking lunges', 3, 10, 40, 'Quads'], ['Hip adduction', 3, 12, 80, 'Adductors']]],
+    ['Upper', [['Dips', 3, 10, '', 'Triceps'], ['Lat pulldown', 3, 10, 100, 'Lats'], ['Biceps curl', 3, 12, 25, 'Biceps']]],
+    null // Sunday: rest
+  ];
+  plan.forEach((p, i) => {
+    const k = iso(addDays(m, i));
+    if (p && !data[k]) data[k] = { name: p[0], exercises: p[1].map(e => ({ name: e[0], sets: e[1], reps: e[2], weight: e[3], muscle: e[4], done: false })) };
+  });
+  save(); say('Sample week added. Click any day to edit it.'); render();
+}
+
+/* ---------- RENDER: build the HTML for the current view ---------- */
+function render() {
+  if (picking && (view !== 'day' || pickDate !== sel)) { picking = false; picked = []; }
+  ['day', 'week', 'month'].forEach(v => document.getElementById('tab-' + v).setAttribute('aria-selected', v === view));
+  const d = parse(sel);
+  const title = document.getElementById('title');
+  const main = document.getElementById('main');
+  main.className = picking ? 'picking' : '';
+  if (view === 'day') {
+    title.textContent = fmt(d, { weekday: 'long', month: 'short', day: 'numeric' });
+    main.innerHTML = dayHTML();
+  } else if (view === 'week') {
+    const m = mondayOf(d);
+    title.textContent = fmt(m, { month: 'short', day: 'numeric' }) + ' to ' + fmt(addDays(m, 6), { month: 'short', day: 'numeric' });
+    main.innerHTML = weekHTML(m);
+  } else {
+    title.textContent = fmt(d, { month: 'long', year: 'numeric' });
+    main.innerHTML = monthHTML(d);
+  }
+}
+
+const muscleOptions = m => '<option value="">Muscle group</option>' + MUSCLES.map(x => '<option' + (x === m ? ' selected' : '') + '>' + x + '</option>').join('');
+
+/* One exercise row while picking what to copy */
+function pickRow(e, i, bits) {
+  return '<label class="ex pick"><div class="exrow"><input type="checkbox" ' + (picked.indexOf(i) >= 0 ? 'checked ' : '') + 'onchange="togglePick(' + i + ')" aria-label="Copy ' + esc(e.name) + '">' +
+    '<span class="label">' + esc(e.name) + '<span class="detail">' + bits.join(' ') + '</span></span></div></label>';
+}
+
+/* The copy / paste buttons at the top of the day view */
+function clipboardHTML() {
+  const w = data[sel], n = w ? w.exercises.length : 0;
+  if (picking) {
+    return '<div class="actions"><button class="btn primary" onclick="copyPicked()">Copy selected (' + picked.length + ')</button>' +
+      '<button class="btn" onclick="pickAll()">' + (picked.length === n ? 'Clear selection' : 'Select all') + '</button>' +
+      '<button class="btn" onclick="stopPick()">Cancel</button></div>';
+  }
+  return '<div class="actions">' +
+    '<button class="btn" onclick="startPick()"' + (n ? '' : ' disabled') + '>Select exercises to copy</button>' +
+    '<button class="btn" onclick="copyWholeDay()"' + (n ? '' : ' disabled') + '>Copy whole day</button>' +
+    (clip ? '<button class="btn primary" onclick="paste()">Paste ' + esc(clip.label) + ' here</button><button class="btn" onclick="clearClip()">Clear clipboard</button>' : '') +
+    '</div>';
+}
+
+function editHTML(e, i) {
+  return '<div class="ex"><div class="edit">' +
+    '<input id="en" value="' + esc(e.name) + '" aria-label="Exercise name">' +
+    '<select id="em" aria-label="Muscle group">' + muscleOptions(e.muscle) + '</select>' +
+    '<input id="es" value="' + esc(e.sets) + '" inputmode="numeric" aria-label="Sets">' +
+    '<input id="er" value="' + esc(e.reps) + '" aria-label="Reps"></div>' +
+    '<div class="actions"><button class="btn primary" onclick="saveEdit(' + i + ')">Save changes</button>' +
+    '<button class="btn" onclick="cancelEdit()">Cancel</button></div></div>';
+}
+
+function dayHTML() {
+  const w = data[sel] || { name: planned(parse(sel)), exercises: [] };
+  const done = w.exercises.filter(e => e.done).length;
+  const rows = w.exercises.map((e, i) => {
+    const bits = e.muscle ? [esc(e.muscle) + ' &middot;'] : [];
+    if (e.sets !== '') bits.push(esc(e.sets) + ' sets');
+    if (picking) return pickRow(e, i, bits);
+    if (editing && editing.date === sel && editing.i === i) return editHTML(e, i);
+    return '<div class="ex' + (e.done ? ' done' : '') + '"><div class="exrow">' +
+      '<input type="checkbox" ' + (e.done ? 'checked ' : '') + 'onchange="toggle(' + i + ')" aria-label="Mark ' + esc(e.name) + ' done">' +
+      '<span class="label">' + (e.primary ? '★ ' : '') + esc(e.name) + '<span class="detail">' + bits.join(' ') + '</span></span>' +
+      '<button class="btn star" onclick="togglePrimary(' + i + ')" aria-pressed="' + !!e.primary + '" aria-label="' + (e.primary ? 'Unmark ' : 'Mark ') + esc(e.name) + ' as a primary lift">' + (e.primary ? '★' : '☆') + '</button>' +
+      '<button class="btn" onclick="startEdit(' + i + ')" aria-label="Edit ' + esc(e.name) + '">Edit</button>' +
+      '<button class="btn" onclick="del(' + i + ')" aria-label="Remove ' + esc(e.name) + '">Remove</button></div>' +
+      '<div class="log">' +
+        '<input value="' + esc(e.reps || '') + '" placeholder="Reps" onchange="setLog(' + i + ',\'reps\',this.value)" aria-label="Reps for ' + esc(e.name) + '">' +
+        '<input value="' + esc(e.weight || '') + '" placeholder="Weight (lb)" inputmode="decimal" onchange="setLog(' + i + ',\'weight\',this.value)" aria-label="Weight for ' + esc(e.name) + '">' +
+        '<input value="' + esc(e.rpe || '') + '" placeholder="RPE" inputmode="decimal" onchange="setLog(' + i + ',\'rpe\',this.value,this)" aria-label="RPE for ' + esc(e.name) + '">' +
+        '<input value="' + esc(e.notes || '') + '" placeholder="Notes" onchange="setLog(' + i + ',\'notes\',this.value)" aria-label="Notes for ' + esc(e.name) + '"></div></div>';
+  }).join('');
+  return '<input class="name-input" value="' + esc(w.name) + '" placeholder="Name this workout (or leave blank for a rest day)" onchange="setName(this.value)" aria-label="Workout name">' +
+    '<p class="muted">' + (w.exercises.length ? done + ' of ' + w.exercises.length + ' done' : (isRestDay(parse(sel)) ? 'Rest day. Recovery is part of the plan, but you can still add something here.' : 'No exercises yet. Add your first one below.')) + '</p>' +
+    clipboardHTML() + rows +
+    '<div class="add">' +
+      '<select id="xb" aria-label="Choose from your exercise bank" onchange="fromBank(this.value)">' + bankOptions() + '</select>' +
+      '<input id="xn" placeholder="Exercise" aria-label="Exercise name">' +
+      '<select id="xm" aria-label="Muscle group"><option value="">Muscle group</option>' + MUSCLES.map(m => '<option>' + m + '</option>').join('') + '</select>' +
+      '<input id="xs" placeholder="Sets" inputmode="numeric" aria-label="Sets">' +
+      '<input id="xr" placeholder="Reps" aria-label="Reps">' +
+      '<button class="btn primary" onclick="addEx()">Add exercise</button>' +
+      '<div class="prim"><label><input type="checkbox" id="xp"> Primary lift (shown in full on the week view)</label>' +
+      '<button class="btn" onclick="saveToBank()">Save to bank</button></div></div>' + bankManageHTML() +
+    '<div class="actions">' +
+      '<button class="btn" onclick="copyDay(1)"' + (data[sel] ? '' : ' disabled') + '>Copy to next day</button>' +
+      '<button class="btn" onclick="copyDay(7)"' + (data[sel] ? '' : ' disabled') + '>Copy to same day next week</button>' +
+      '<button class="btn" onclick="clearDay()"' + (data[sel] ? '' : ' disabled') + '>Clear this day</button></div>';
+}
+
+/* Add up the planned sets for each muscle group across the 7 days of the week starting at m */
+function totalsHTML(m) {
+  const sets = {}, finished = {};
+  MUSCLES.forEach(x => { sets[x] = 0; finished[x] = 0; });
+  for (let i = 0; i < 7; i++) {
+    const w = data[iso(addDays(m, i))];
+    if (!w) continue;
+    w.exercises.forEach(e => {
+      const n = parseInt(e.sets, 10);
+      if (sets[e.muscle] !== undefined && n > 0) { sets[e.muscle] += n; if (e.done) finished[e.muscle] += n; }
+    });
+  }
+  const max = Math.max(10, ...MUSCLES.map(x => sets[x]));
+  const total = MUSCLES.reduce((a, x) => a + sets[x], 0);
+  const rows = MUSCLES.map(x =>
+    '<div class="trow"><span>' + x + '</span><span class="bar"><i style="width:' + (sets[x] / max * 100) + '%"></i></span>' +
+    '<span class="num">' + sets[x] + (sets[x] ? ' <small class="muted">(' + finished[x] + ' done)</small>' : '') + '</span></div>').join('');
+  return '<h2 class="sec">Sets per muscle this week</h2>' +
+    '<p class="muted">' + total + ' planned sets in total. Exercises without a muscle group aren’t counted.</p>' +
+    '<div>' + rows + '</div>';
+}
+
+/* Primary lifts get their full details on the week card: sets x reps, weight and notes */
+function primaryHTML(w) {
+  return w.exercises.filter(e => e.primary).map(e => {
+    const sr = e.sets !== '' && e.reps !== '' ? e.sets + ' &times; ' + esc(e.reps) : e.sets !== '' ? esc(e.sets) + ' sets' : '';
+    const wt = e.weight !== '' && e.weight != null ? '@ ' + esc(e.weight) + ' lb' : '(no weight logged yet)';
+    return '<div class="prime' + (e.done ? ' done' : '') + '"><strong>' + esc(e.name) + '</strong>' +
+      '<div>' + sr + ' ' + wt + (e.rpe ? ' RPE ' + esc(e.rpe) : '') + (e.muscle ? ' <span class="muted">' + esc(e.muscle) + '</span>' : '') + '</div>' +
+      (e.notes ? '<div class="muted">' + esc(e.notes) + '</div>' : '') + '</div>';
+  }).join('');
+}
+
+/* Every other exercise goes in the drop-down, with just sets and weight */
+function exListHTML(w) {
+  const rest = w.exercises.filter(e => !e.primary);
+  if (!rest.length) return '';
+  const items = rest.map(e => {
+    const s = e.sets !== '' ? esc(e.sets) + (Number(e.sets) === 1 ? ' set' : ' sets') : '';
+    const wt = e.weight !== '' && e.weight != null ? '@ ' + esc(e.weight) + ' lb' : '';
+    return '<li' + (e.done ? ' class="done"' : '') + '>' + esc(e.name) + ' <span class="muted">' + s + ' ' + wt + (e.rpe ? ' RPE ' + esc(e.rpe) : '') + '</span></li>';
+  }).join('');
+  const label = w.exercises.some(e => e.primary) ? 'Other exercises' : 'Exercises';
+  return '<details class="exlist"><summary>' + label + ' (' + rest.length + ')</summary><ul>' + items + '</ul></details>';
+}
+/* Open every day's list at once, or close them all if they are already open */
+function toggleLists() {
+  const all = Array.from(document.querySelectorAll('.exlist'));
+  const open = all.some(d => !d.open);
+  all.forEach(d => { d.open = open; });
+}
+
+function weekHTML(m) {
+  const today = iso(new Date());
+  let any = false;
+  const cards = [0, 1, 2, 3, 4, 5, 6].map(i => {
+    const day = addDays(m, i), k = iso(day), w = data[k];
+    if (w) any = true;
+    const n = w ? w.exercises.length : 0, done = w ? w.exercises.filter(e => e.done).length : 0;
+    return '<div class="daycard' + (k === today ? ' today' : '') + '"><button class="dayhead" onclick="go(\'' + k + '\')">' +
+      '<div class="dow">' + fmt(day, { weekday: 'short' }) + ' <span class="muted">' + day.getDate() + '</span></div>' +
+      '<div class="wname">' + (w && w.name ? esc(w.name) : '<span class="muted">' + (planned(day) ? planned(day) + ' (planned)' : isRestDay(day) ? 'Rest day' : 'Nothing planned') + '</span>') + '</div>' +
+      (n ? '<div class="muted">' + done + '/' + n + ' done</div>' : '') + '</button>' + (n ? primaryHTML(w) + exListHTML(w) : '') + '</div>';
+  }).join('');
+  return '<div class="actions wkbar"><button class="btn" onclick="toggleLists()">Show or hide all exercises</button></div>' +
+    '<div class="week">' + cards + '</div>' +
+    (any ? '<div class="actions"><button class="btn primary" onclick="copyWeek()">Copy this week to next week</button></div>' : '<div class="actions"><button class="btn primary" onclick="sampleWeek()">Fill with a sample week</button></div>') + totalsHTML(m);
+}
+
+function monthHTML(d) {
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const days = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const today = iso(new Date());
+  let h = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(x => '<div class="mh">' + x + '</div>').join('');
+  for (let i = 0; i < (first.getDay() + 6) % 7; i++) h += '<div class="blank"></div>';
+  for (let n = 1; n <= days; n++) {
+    const dt = new Date(d.getFullYear(), d.getMonth(), n), k = iso(dt), w = data[k];
+    const rest = !(w && w.name) && (isRestDay(dt) || planned(dt));
+    h += '<button class="cell' + (k === today ? ' today' : '') + (rest ? ' rest' : '') + '" onclick="go(\'' + k + '\')">' +
+      '<span class="n">' + n + '</span><span class="w">' + (w && w.name ? esc(w.name) : (rest ? (planned(dt) || 'Rest') : '')) + '</span></button>';
+  }
+  return '<div class="month">' + h + '</div>';
+}
+
+render();
+
+/* Jump to today when you reopen the app on a new day (phones keep apps open in the background) */
+let lastToday = iso(new Date());
+function checkToday() {
+  const t = iso(new Date());
+  if (t !== lastToday) { lastToday = t; sel = t; view = 'day'; editing = null; say(''); render(); }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkToday(); });
+window.addEventListener('pageshow', checkToday);
+</script>
+</body>
+</html>
